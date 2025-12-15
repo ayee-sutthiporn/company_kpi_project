@@ -1,0 +1,183 @@
+@model IEnumerable<CompanyKPI_Project.Models.TblTDataCompanyKpiHd>
+
+@{
+    ViewBag.Title = "Company KPI Detail (Admin)";
+    var file = ViewBag.File as CompanyKPI_Project.Models.TblTFileUpload;
+}
+
+<div class="container mt-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <h3>Company KPI Detail <small class="text-muted">(FY @(file != null ? file.File_OfficialYear.ToString() : "N/A"))</small></h3>
+            <div class="text-muted">Double click to Update detail</div>
+        </div>
+        <div class="col-auto">
+             <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                 Add Item
+             </button>
+             <a href="@Url.Action("Index", "Kpi")" class="btn btn-outline-secondary ms-2">Close</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-bordered table-striped table-hover mb-0">
+                <thead class="table-light text-center">
+                    <tr>
+                        <th style="width: 5%">No</th>
+                        <th style="width: 40%">KPI Detail</th>
+                        <th style="width: 10%">PIC</th>
+                        <th style="width: 10%">Condition</th>
+                        <th style="width: 10%">Unit</th>
+                        <th style="width: 10%">Update By</th>
+                        <th style="width: 15%">Update Date</th>
+                        <th style="width: 5%">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int i = 1; }
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="text-center">@i</td>
+                            <td>
+                                <strong>@item.Hd_TopicNo</strong>
+                                @if(!string.IsNullOrEmpty(item.Hd_DetailDescription)) {
+                                    <br/><small class="text-muted">@item.Hd_DetailDescription</small>
+                                }
+                            </td>
+                            <td class="text-center">@item.Hd_MainPIC</td>
+                            <td class="text-center">@item.Hd_Condition @item.Hd_TargetValue</td>
+                            <td class="text-center">@item.Hd_Unit</td>
+                            <td class="text-center">@item.Hd_UpdateBy</td>
+                            <td class="text-center">@(item.Hd_UpdateDate.HasValue ? item.Hd_UpdateDate.Value.ToString("dd-MM-yyyy") : "")</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-warning" 
+                                    onclick="editItem('@item.Hd_Id', '@item.Hd_TopicNo', '@item.Hd_Condition', '@item.Hd_TargetValue', '@item.Hd_Unit', '@item.Hd_MainPIC', '@item.Hd_TrueDesc', '@item.Hd_FalseDesc')">
+                                    Edit
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('@item.Hd_Id')">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function deleteItem(id) {
+        if (confirm('Are you sure you want to delete this KPI Item? This action cannot be undone.')) {
+            $.post('@Url.Action("DeleteItem", "Kpi")', { id: id }, function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to delete: ' + (data.message || 'Unknown error'));
+                }
+            });
+        }
+    }
+</script>
+
+<!-- Add/Edit Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="@Url.Action("AddItem", "Kpi")" method="post">
+                <input type="hidden" name="fileId" value="@(file?.File_Id ?? 0)" />
+                <input type="hidden" name="hdId" id="hdId" value="0" />
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Add Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Topic / No</label>
+                        <input type="text" name="topic" id="topic" class="form-control" placeholder="e.g. 1. New KPI" required />
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Condition</label>
+                            <select name="condition" id="condition" class="form-select">
+                                <option value="<=">&lt;=</option>
+                                <option value=">=">&gt;=</option>
+                                <option value="<">&lt;</option>
+                                <option value=">">&gt;</option>
+                                <option value="=">=</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Target</label>
+                            <input type="number" name="target" id="target" class="form-control" required />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                         <div class="col-6 mb-3">
+                            <label class="form-label">True Desc</label>
+                            <input type="text" name="trueDesc" id="trueDesc" class="form-control" value="Achieve" />
+                        </div>
+                         <div class="col-6 mb-3">
+                            <label class="form-label">False Desc</label>
+                            <input type="text" name="falseDesc" id="falseDesc" class="form-control" value="Not Achieve" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                         <div class="col-6 mb-3">
+                            <label class="form-label">Unit</label>
+                            <input type="text" name="unit" id="unit" class="form-control" value="PPM" />
+                        </div>
+                         <div class="col-6 mb-3">
+                            <label class="form-label">PIC</label>
+                            <select name="pic" id="pic" class="form-select" required>
+                                <option value="">-- Select PIC --</option>
+                                <option value="QA">QA</option>
+                                <option value="HR">HR</option>
+                                <option value="Production">Production</option>
+                                <option value="IT">IT</option>
+                                <option value="Sales">Sales</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function editItem(id, topic, condition, target, unit, pic, trueDesc, falseDesc) {
+        document.getElementById('hdId').value = id;
+        document.getElementById('topic').value = topic;
+        document.getElementById('condition').value = condition;
+        document.getElementById('target').value = target;
+        document.getElementById('unit').value = unit;
+        document.getElementById('pic').value = pic;
+        document.getElementById('trueDesc').value = trueDesc;
+        document.getElementById('falseDesc').value = falseDesc;
+        
+        document.getElementById('modalTitle').innerText = "Edit Item";
+        
+        var myModal = new bootstrap.Modal(document.getElementById('addItemModal'));
+        myModal.show();
+    }
+    
+    // Reset modal on close/add
+    document.getElementById('addItemModal').addEventListener('hidden.bs.modal', function () {
+       document.getElementById('hdId').value = "0";
+       document.getElementById('modalTitle').innerText = "Add Item";
+       document.forms[0].reset();
+    });
+</script>

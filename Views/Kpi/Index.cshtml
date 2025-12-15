@@ -1,0 +1,93 @@
+@model IEnumerable<CompanyKPI_Project.Models.TblTFileUpload>
+
+@{
+    ViewBag.Title = "QA Admin";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>QA Admin</h2>
+        <!-- Button trigger modal -->
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            Upload Excel Company KPI
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-hover table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>No</th>
+                        <th>FY</th>
+                        <th>File Name</th>
+                        <th>Upload By</th>
+                        <th>Upload Date</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int i = 1; }
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@i</td>
+                            <td>@item.File_OfficialYear</td>
+                            <td>@item.File_Name</td>
+                            <td>@item.File_UploadBy</td>
+                            <td>@(item.File_UploadDate.HasValue ? item.File_UploadDate.Value.ToString("dd MMM yyyy HH:mm") : "")</td>
+                            <td>
+                                <!-- Link for QA Admin -->
+                                <a href="@Url.Action("AdminDetail", "Kpi", new { id = item.File_Id })" class="btn btn-sm btn-outline-primary me-2">
+                                    Details
+                                </a>
+                                <!-- Link for User -->
+                                <a href="@Url.Action("UserResult", "Kpi", new { id = item.File_Id })" class="btn btn-sm btn-outline-success">
+                                    Result
+                                </a>
+                                <!-- Export -->
+                                <a href="@Url.Action("Export", "Kpi", new { id = item.File_Id })" class="btn btn-sm btn-success ms-1" title="Export to Excel">
+                                    Export Excel
+                                </a>
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="@Url.Action("Upload", "Kpi")" method="post" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadModalLabel">Upload Excel Company KPI</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="year" class="form-label">FY</label>
+                        <select name="year" class="form-select" required>
+                            @for (int y = DateTime.Now.Year - 1; y <= DateTime.Now.Year + 2; y++)
+                            {
+                                <option value="@y" @(y == DateTime.Now.Year ? "selected" : "")>@y</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="file" class="form-label">File</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx, .xls" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-secondary">Upload</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

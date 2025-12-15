@@ -1,0 +1,123 @@
+@model CompanyKPI_Project.Models.DepartmentKpiViewModel
+@{
+    ViewBag.Title = "Department KPI Upload";
+    var years = ViewBag.Years as List<int>;
+    var depts = ViewBag.Departments as List<string>;
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fa fa-folder-open-o"></i> Department KPI Management</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <!-- ... (skipped unchanged) ... -->
+    </div>
+
+    <!-- Upload Grid -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="mb-0 text-secondary">
+                Uploads for <span class="text-primary">@Model.Department</span> - FY @Model.Year
+            </h5>
+        </div>
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 20%">Month</th>
+                    <th style="width: 15%">Status</th>
+                    <th style="width: 40%">File</th>
+                    <th style="width: 25%">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in Model.Months)
+                {
+                    <tr>
+                        <td><strong>@m.MonthName</strong></td>
+                        <td>
+                            @if (m.Upload != null)
+                            {
+                                <span class="badge bg-success rounded-pill">Uploaded</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary rounded-pill">Pending</span>
+                            }
+                        </td>
+                        <td>
+                            @if (m.Upload != null)
+                            {
+                                <div>
+                                    <a href="@Url.Action("Download", new { id = m.Upload.Id })" class="text-decoration-none fw-bold" title="Download File">
+                                        <i class="fa fa-download text-success"></i> 
+                                        @m.Upload.FileName
+                                    </a>
+                                    <div class="small text-muted">
+                                        Date: @m.Upload.UploadDate.ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="openUploadModal('@m.Month', '@m.MonthName')">
+                                Upload
+                            </button>
+                            
+                            @if (m.Upload != null)
+                            {
+                                <a href="@Url.Action("Delete", new { id = m.Upload.Id })" 
+                                   class="btn btn-sm btn-outline-danger ms-1"
+                                   onclick="return confirm('Delete this file?')">
+                                    Delete
+                                </a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="@Url.Action("Upload", "DepartmentKpi")" method="post" enctype="multipart/form-data">
+                <input type="hidden" name="year" value="@Model.Year" />
+                <input type="hidden" name="dept" value="@Model.Department" />
+                <input type="hidden" name="month" id="uploadMonthVal" />
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload KPI for <span id="uploadMonthName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Excel File</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx, .xls" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openUploadModal(monthVal, monthName) {
+        document.getElementById('uploadMonthVal').value = monthVal;
+        document.getElementById('uploadMonthName').innerText = monthName;
+        new bootstrap.Modal(document.getElementById('uploadModal')).show();
+    }
+</script>

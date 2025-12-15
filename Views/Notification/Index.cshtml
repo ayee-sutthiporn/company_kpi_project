@@ -1,0 +1,84 @@
+@{
+    ViewBag.Title = "Notification System Test";
+}
+
+<div class="container mt-5">
+    <h2><i class="bi bi-envelope"></i> Notification System Test</h2>
+    <p class="text-muted">Simulate system triggers for email notifications.</p>
+
+    <div class="row mt-4">
+        <!-- New Month Trigger -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-primary"><i class="bi bi-calendar-check"></i> 1st of Month Trigger</h5>
+                    <p class="card-text">Sends "New Month Started" email to all Department Heads.</p>
+                    <button class="btn btn-primary" onclick="triggerPromo()">
+                        <i class="bi bi-send"></i> Simulate 1st of Month
+                    </button>
+                    <div id="logStart" class="mt-3 p-2 bg-light border rounded d-none" style="font-family: monospace; font-size: 0.9em;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reminder Trigger -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-danger"><i class="bi bi-alarm"></i> End of Month Reminder</h5>
+                    <p class="card-text">Checks for missing KPI results (Current Month). Reminds Dept if within 5 days of month end.</p>
+                    <p class="small text-muted mb-2">Today: @DateTime.Now.ToString("dd-MMM-yyyy")</p>
+                    <button class="btn btn-danger" onclick="triggerReminder(false)">
+                        <i class="bi bi-check-circle"></i> Check Logic (Date Based)
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="triggerReminder(true)">
+                        <i class="bi bi-lightning"></i> Force Send (Test)
+                    </button>
+                    <div id="logReminder" class="mt-3 p-2 bg-light border rounded d-none" style="font-family: monospace; font-size: 0.9em;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="@Url.Action("Index", "Kpi")" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+
+<script>
+    function triggerPromo() {
+        var logDiv = $('#logStart');
+        logDiv.removeClass('d-none').html('<span class="text-muted">Sending...</span>');
+        
+        $.post('@Url.Action("SendNewMonthNotifications", "Notification")', function(data) {
+            if(data.success) {
+                var html = '<ul class="list-unstyled mb-0">';
+                data.logs.forEach(function(l) { html += '<li class="text-success"><i class="bi bi-check"></i> ' + l + '</li>'; });
+                html += '</ul>';
+                logDiv.html(html);
+            } else {
+                logDiv.html('<span class="text-danger">Error: ' + data.message + '</span>');
+            }
+        });
+    }
+
+    function triggerReminder(force) {
+        var logDiv = $('#logReminder');
+        logDiv.removeClass('d-none').html('<span class="text-muted">Checking ' + (force ? '(Forced)...' : '...') + '</span>');
+        
+        $.post('@Url.Action("SendReminders", "Notification")', { force: force }, function(data) {
+            if(data.success) {
+                var html = '';
+                if(data.logs.length === 0) html = '<span class="text-warning">No notifications needed or sent.</span>';
+                else {
+                    html = '<ul class="list-unstyled mb-0">';
+                    data.logs.forEach(function(l) { html += '<li class="text-success"><i class="bi bi-envelope-paper"></i> ' + l + '</li>'; });
+                    html += '</ul>';
+                }
+                logDiv.html(html);
+            } else {
+                logDiv.html('<span class="text-danger">Log: ' + data.message + '</span>');
+            }
+        });
+    }
+</script>

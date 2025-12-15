@@ -1,0 +1,503 @@
+@model IEnumerable<CompanyKPI_Project.Models.TblTDataCompanyKpiHd>
+@using System.Linq
+
+@{
+    ViewBag.Title = "Company KPI Detail";
+    var file = ViewBag.File as CompanyKPI_Project.Models.TblTFileUpload;
+
+    // Sort items by TopicNo
+    var items = Model.OrderBy(i => i.Hd_TopicNo).ToList();
+
+    // Get months from the first item
+    var firstItem = items.FirstOrDefault();
+    var months = firstItem != null ? firstItem.Details.OrderBy(d => d.DT_Month).Select(d => d.DT_Month).ToList() : new List<DateTime?>();
+}
+
+<style>
+    .kpi-table th, .kpi-table td {
+        vertical-align: middle;
+        text-align: center;
+        white-space: nowrap;
+        font-size: 0.9rem;
+    }
+
+    .kpi-topic {
+        text-align: left !important;
+        min-width: 250px;
+        white-space: normal !important;
+    }
+
+    .clickable-cell:hover {
+        background-color: #e2e6ea;
+        cursor: pointer;
+    }
+
+    .cell-pass {
+        background-color: #d4edda !important; /* Green */
+        color: #155724;
+    }
+
+    .cell-fail {
+        background-color: #f8d7da !important; /* Red */
+        color: #721c24;
+    }
+</style>
+
+<style>
+    .kpi-table th, .kpi-table td {
+        vertical-align: middle;
+        text-align: center;
+        white-space: nowrap;
+        font-size: 0.9rem;
+    }
+
+    .kpi-topic {
+        text-align: left !important;
+        min-width: 250px;
+        white-space: normal !important;
+    }
+
+    .clickable-cell:hover {
+        background-color: #e2e6ea;
+        cursor: pointer;
+    }
+
+    .cell-pass {
+        background-color: #d4edda;
+    }
+
+    .cell-fail {
+        background-color: #f8d7da;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3 align-items-center">
+        <div class="col">
+            <h3>
+                Company KPI Detail
+                <small class="text-muted">(FY @(file != null ? file.File_OfficialYear.ToString() : "N/A"))</small>
+                @if (ViewBag.SelectedDept != null)
+                {
+                    <span class="badge bg-info text-dark ms-2">@ViewBag.SelectedDept</span>
+                }
+            </h3>
+        </div>
+        <div class="col-auto">
+            @if (ViewBag.SelectedDept != null)
+            {
+                <a href="@Url.Action("UserDashboard", "Kpi", new { year = ViewBag.CurrentYear })" class="btn btn-secondary">Switch Dept</a>
+            }
+            else
+            {
+                <a href="@Url.Action("Index", "Kpi")" class="btn btn-secondary">Back</a>
+            }
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped kpi-table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th rowspan="2">No</th>
+                            <th colspan="6">Company KPI Detail</th>
+                            @foreach (var m in months)
+                            {
+                                <th rowspan="2">@string.Format("{0:MMM-yy}", m)</th>
+                            }
+                        </tr>
+                        <tr>
+                            <th>Topic</th>
+                            <th style="width: 50px;">Graph</th>
+                            <th>Condition</th>
+                            <th>Target</th>
+                            <th>Unit</th>
+                            <th>PIC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int r = 1; }
+                        @foreach (var item in items)
+                        {
+                            <tr>
+                                <td>@r</td>
+                                <td class="kpi-topic">
+                                    <strong>@item.Hd_TopicNo</strong>
+                                    @if (!string.IsNullOrEmpty(item.Hd_DetailDescription))
+                                    {
+                                        <br /><small class="text-muted">@item.Hd_DetailDescription</small>
+                                    }
+                                    <div style="font-size: 0.8em; color: gray;">
+                                        True: @item.Hd_TrueDesc | False: @item.Hd_FalseDesc
+                                    </div>
+                                </td>
+                                <td>
+                                    @{
+                                        // Collect IDs for JS to lookup
+                                        var dtIds = string.Join(",", item.Details.OrderBy(d => d.DT_Month).Select(d => d.DT_Id));
+                                    }
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="showTrend('@item.Hd_TopicNo', '@item.Hd_TargetValue', '@item.Hd_Condition', '@dtIds')">
+                                        <i class="fa fa-line-chart"></i> T
+                                    </button>
+                                </td>
+                                <td>@item.Hd_Condition</td>
+                                <td>@item.Hd_TargetValue</td>
+                                <td>@item.Hd_Unit</td>
+                                <td>@item.Hd_MainPIC</td>
+                                @foreach (var dt in item.Details.OrderBy(d => d.DT_Month))
+                                {
+                                    var resultClass = "";
+                                    var isFuture = dt.DT_Month > DateTime.Now;  
+                                    var cellClass = isFuture ? "table-active text-muted" : "clickable-cell";
+
+                                    if (!string.IsNullOrEmpty(dt.DT_Result))
+                                    {
+                                         if (dt.DT_Result == item.Hd_TrueDesc) { resultClass = "cell-pass"; }
+                                         else if (dt.DT_Result == item.Hd_FalseDesc) { resultClass = "cell-fail"; }
+                                     }
+
+                                    <td class="@cellClass @resultClass"
+                                        id="cell-@dt.DT_Id"
+                                        data-dt-id="@dt.DT_Id"
+                                        data-month="@string.Format("{0:MMM-yy}", dt.DT_Month)"
+                                        data-result="@dt.DT_Result"
+                                        data-actual="@dt.DT_ActualValue"
+                                        data-target="@item.Hd_TargetValue"
+                                        data-condition="@item.Hd_Condition"
+                                        data-prog-file="@dt.DT_ProgressiveFile"
+                                        data-action-file="@dt.DT_ActionPlanFile">
+                                        @if(isFuture) {
+                                            <i class="fa fa-lock"></i>
+                                        } else {
+                                            @dt.DT_Result
+                                            
+                                            <!-- Icons indicating file presence (optional, but good for UX) -->
+                                            if(!string.IsNullOrEmpty(dt.DT_ProgressiveFile)) {
+                                                <small class="ms-1 text-primary"><i class="fa fa-file-powerpoint-o"></i></small>
+                                            }
+                                            if(!string.IsNullOrEmpty(dt.DT_ActionPlanFile)) {
+                                                <small class="ms-1 text-danger"><i class="fa fa-file-text-o"></i></small>
+                                            }
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                            r++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Data Modal -->
+    <div class="modal fade" id="updateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Result</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="dtId" />
+                    <!-- Hidden fields for validation logic -->
+                    <input type="hidden" id="hdTarget" />
+                    <input type="hidden" id="hdCondition" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Month</label>
+                        <input type="text" id="monthDisplay" class="form-control" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Actual Result Value</label>
+                        <input type="number" id="resultInput" step="any" class="form-control" placeholder="Enter value" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Progressive of this month / Problem</label>
+                        <input type="file" id="fileProgressive" class="form-control" accept=".xlsx, .xls" />
+                        <div id="linkProgressive" class="mt-1 small"></div>
+                        <small class="text-danger d-none" id="errProgressive">Required if Not Achieve</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Short term action plan</label>
+                        <input type="file" id="fileActionPlan" class="form-control" accept=".xlsx, .xls" />
+                        <div id="linkActionPlan" class="mt-1 small"></div>
+                        <small class="text-danger d-none" id="errActionPlan">Required if Not Achieve</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="saveResult()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trend Modal -->
+    <div class="modal fade" id="trendModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="trendTitle">Trend Analysis</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script src="~/Scripts/chart.js"></script>
+
+    <script>
+    var trendChartInstance = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof jQuery !== 'undefined') {
+            $('.clickable-cell').click(function() {
+                var dtId = $(this).data('dt-id');
+                var month = $(this).data('month');
+                var actual = $(this).data('actual');
+                
+                var target = $(this).data('target');
+                var condition = $(this).data('condition');
+                
+                var progFile = $(this).attr('data-prog-file'); // Use attr to ensure string
+                var actionFile = $(this).attr('data-action-file');
+
+                $('#dtId').val(dtId);
+                $('#monthDisplay').val(month);
+                $('#resultInput').val(actual ? actual : '');
+                $('#hdTarget').val(target);
+                $('#hdCondition').val(condition);
+                
+                // Reset files and errors
+                $('#fileProgressive').val('');
+                $('#fileActionPlan').val('');
+                $('#errProgressive').addClass('d-none');
+                $('#errActionPlan').addClass('d-none');
+                
+                // Populate Download Links
+                var linkProgDiv = $('#linkProgressive');
+                linkProgDiv.empty();
+                if(progFile && progFile !== 'null') { // Check for 'null' string as well
+                     var url = '@Url.Action("DownloadResultFile", "Kpi")' + '?dtId=' + dtId + '&type=prog';
+                     linkProgDiv.html(
+                         '<div class="d-flex align-items-center mb-1">' +
+                             '<a href="' + url + '" target="_blank" class="text-decoration-none me-2"><i class="fa fa-download"></i> Current: ' + progFile + '</a>' +
+                             '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteResultFile(\'prog\')"><i class="fa fa-trash"></i></button>' +
+                         '</div>'
+                     );
+                }
+                
+                var linkActionDiv = $('#linkActionPlan');
+                linkActionDiv.empty();
+                if(actionFile && actionFile !== 'null') { // Check for 'null' string as well
+                     var url = '@Url.Action("DownloadResultFile", "Kpi")' + '?dtId=' + dtId + '&type=action';
+                     linkActionDiv.html(
+                         '<div class="d-flex align-items-center mb-1">' +
+                             '<a href="' + url + '" target="_blank" class="text-decoration-none me-2"><i class="fa fa-download"></i> Current: ' + actionFile + '</a>' +
+                             '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteResultFile(\'action\')"><i class="fa fa-trash"></i></button>' +
+                         '</div>'
+                     );
+                }
+
+                var myModal = new bootstrap.Modal(document.getElementById('updateModal'));
+                myModal.show();
+            });
+        }
+    });
+
+    function deleteResultFile(type) {
+        if(!confirm('Are you sure you want to delete this file?')) return;
+        
+        var dtId = $('#dtId').val();
+        
+        $.post('@Url.Action("DeleteResultFile", "Kpi")', { dtId: dtId, type: type }, function(data) {
+            if (data.success) {
+                // UI Update
+                if (type === 'prog') {
+                    $('#linkProgressive').empty();
+                    $('#cell-' + dtId).attr('data-prog-file', '');
+                } else {
+                    $('#linkActionPlan').empty();
+                    $('#cell-' + dtId).attr('data-action-file', '');
+                }
+                
+                // Update Cell Icons
+                var cell = $('#cell-' + dtId);
+                cell.find('small').remove(); // Remove old icons
+                
+                var iconHtml = "";
+                var pFile = cell.attr('data-prog-file');
+                var aFile = cell.attr('data-action-file');
+                 
+                if(pFile && pFile !== 'null') iconHtml += '<small class="ms-1 text-primary"><i class="fa fa-file-powerpoint-o"></i></small>';
+                if(aFile && aFile !== 'null') iconHtml += '<small class="ms-1 text-danger"><i class="fa fa-file-text-o"></i></small>';
+                 
+                cell.append(iconHtml);
+            } else {
+                alert('Failed to delete: ' + data.message);
+            }
+        }).fail(function() {
+            alert('Server error while deleting file.');
+        });
+    }
+
+    function showTrend(topic, target, condition, dataIds) {
+        var ids = dataIds.split(',');
+        var labels = [];
+        var dataPoints = [];
+        var targetPoints = [];
+        
+        ids.forEach(function(id) {
+            var cell = $('#cell-' + id);
+            var month = cell.data('month');
+            var actual = cell.data('actual');
+            var val = actual ? parseFloat(actual) : null;
+            
+            labels.push(month);
+            dataPoints.push(val);
+            if(target) targetPoints.push(target);
+        });
+
+        document.getElementById('trendTitle').innerText = 'Trend: ' + topic;
+        
+        var ctx = document.getElementById('trendChart').getContext('2d');
+        if (trendChartInstance) trendChartInstance.destroy();
+
+        trendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Actual Result',
+                    data: dataPoints,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }, {
+                    label: 'Target',
+                    data: targetPoints,
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderDash: [5, 5],
+                    tension: 0,
+                    pointRadius: 0
+                }]
+            }
+        });
+
+        new bootstrap.Modal(document.getElementById('trendModal')).show();
+    }
+
+    function saveResult() {
+        var dtId = $('#dtId').val();
+        var result = $('#resultInput').val();
+        var target = parseFloat($('#hdTarget').val());
+        var condition = $('#hdCondition').val();
+        
+        var val = parseFloat(result);
+        var isPass = true; // Default pass if no target
+        
+        if (!isNaN(val) && !isNaN(target)) {
+             switch (condition) {
+                case ">=": isPass = val >= target; break;
+                case "<=": isPass = val <= target; break;
+                case ">": isPass = val > target; break;
+                case "<": isPass = val < target; break;
+                case "=": isPass = Math.Abs(val - target) < 0.01; break;
+            }
+        }
+        
+        if (!isPass) {
+            var f1 = $('#fileProgressive').val(); // New file selected?
+            var f2 = $('#fileActionPlan').val();
+            
+            // Check if existing file is present (via data attr on cell) to allow update without re-uploading
+            var cell = $('#cell-' + dtId);
+            var existingF1 = cell.attr('data-prog-file');
+            var existingF2 = cell.attr('data-action-file');
+
+            var hasError = false;
+            
+            // Logic: Required if Not Achieve AND No existing file AND No new file
+            // Actually user implies "Forced to upload" -> Logic should be strictly checking if We HAVE a file content now or previously.
+            // But if user wants to replace, they upload. If they have one, maybe they don't need to re-upload.
+            // Requirement: "บังคับใหัอัปโหลด" (Force Upload). Usually means "Must have a file".
+            // If already has file, do we force re-upload? Usually no.
+            
+            if (!f1 && (!existingF1 || existingF1 === 'null')) { $('#errProgressive').removeClass('d-none'); hasError = true; }
+            else { $('#errProgressive').addClass('d-none'); }
+            
+            if (!f2 && (!existingF2 || existingF2 === 'null')) { $('#errActionPlan').removeClass('d-none'); hasError = true; }
+            else { $('#errActionPlan').addClass('d-none'); }
+            
+            if (hasError) {
+                alert("Result is Not Achieve. Please upload required Excel files.");
+                return;
+            }
+        }
+
+        if (typeof jQuery !== 'undefined') {
+            var formData = new FormData();
+            formData.append('dtId', dtId);
+            formData.append('resultValue', result);
+            
+            var file1 = $('#fileProgressive')[0].files[0];
+            var file2 = $('#fileActionPlan')[0].files[0];
+            if (file1) formData.append('fileProgressive', file1);
+            if (file2) formData.append('fileActionPlan', file2);
+
+            $.ajax({
+                url: '@Url.Action("UpdateDetail", "Kpi")',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(data) {
+                    if (data.success) {
+                        var cell = $('#cell-' + dtId);
+                        cell.text(data.result); // Update the text content first
+                        cell.data('actual', result);
+                        cell.attr('data-actual', result);
+                        cell.removeClass('cell-pass cell-fail');
+                        cell.addClass(data.isPass ? 'cell-pass' : 'cell-fail');
+                        
+                        // Update data-files attributes if new files were uploaded
+                        // Note: Implementation of UpdateDetail in Controller should ideally return filenames.
+                        // Since we didn't update Controller to return filenames in this step, we can infer from input.
+                        // But for full correctness, checking logic: 
+                        // If file1 is sent, we assume it's saved.
+                        
+                        if(file1) { cell.attr('data-prog-file', file1.name); }
+                        if(file2) { cell.attr('data-action-file', file2.name); }
+                        
+                        // Re-add icons if text was replaced
+                         var iconHtml = "";
+                         var pFile = cell.attr('data-prog-file');
+                         var aFile = cell.attr('data-action-file');
+                         
+                         if(pFile && pFile !== 'null') iconHtml += '<small class="ms-1 text-primary"><i class="fa fa-file-powerpoint-o"></i></small>';
+                         if(aFile && aFile !== 'null') iconHtml += '<small class="ms-1 text-danger"><i class="fa fa-file-text-o"></i></small>';
+                         
+                         cell.append(iconHtml);
+
+                        bootstrap.Modal.getInstance(document.getElementById('updateModal')).hide();
+                    } else {
+                        alert('Failed to save: ' + (data.message || 'Unknown error'));
+                    }
+                },
+                error: function() {
+                     alert('Error calling server');
+                }
+            });
+        }
+    }
+    </script>

@@ -1,0 +1,46 @@
+@{
+    ViewBag.Title = "Select Department";
+    var departments = ViewBag.Departments as List<string>;
+    var currentYear = ViewBag.CurrentYear;
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <h2 class="mb-4">Select Your Department</h2>
+            <h4 class="text-muted mb-5">FY @currentYear</h4>
+
+            @if (departments != null && departments.Any())
+            {
+                <form action="@Url.Action("UserDashboard", "Kpi")" method="get" class="d-grid gap-3">
+                    <input type="hidden" name="year" value="@currentYear" />
+                    
+                    <div class="form-floating">
+                        <select name="dept" class="form-select" id="deptSelect" required>
+                            <option value="">-- Choose Department --</option>
+                            @foreach (var dept in departments)
+                            {
+                                <option value="@dept">@dept</option>
+                            }
+                        </select>
+                        <label for="deptSelect">Department</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                        Go to Dashboard <i class="bi bi-arrow-right"></i>
+                    </button>
+                </form>
+            }
+            else
+            {
+                <div class="alert alert-warning">
+                    No departments found for this year.
+                </div>
+            }
+            
+            <div class="mt-5">
+                 <a href="@Url.Action("Index", "Kpi")" class="text-decoration-none text-muted">Back to Home</a>
+            </div>
+        </div>
+    </div>
+</div>
