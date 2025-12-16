@@ -12,7 +12,33 @@
 
     <!-- Filters -->
     <div class="card shadow-sm mb-4">
-        <!-- ... (skipped unchanged) ... -->
+        <div class="card-body">
+            <form method="get" action="@Url.Action("Index", "DepartmentKpi")" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Fiscal Year</label>
+                    <select name="year" class="form-select">
+                        @foreach (var y in years)
+                        {
+                            <option value="@y" @(y == Model.Year ? "selected" : "")>@y</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    <select name="dept" class="form-select">
+                        @foreach (var d in depts)
+                        {
+                            <option value="@d" @(d == Model.Department ? "selected" : "")>@d</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fa fa-search"></i> View
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Upload Grid -->

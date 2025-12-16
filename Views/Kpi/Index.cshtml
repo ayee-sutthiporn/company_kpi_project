@@ -13,6 +13,14 @@
         </button>
     </div>
 
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="card">
         <div class="card-body">
             <table class="table table-hover table-bordered">
@@ -49,6 +57,11 @@
                                 <a href="@Url.Action("Export", "Kpi", new { id = item.File_Id })" class="btn btn-sm btn-success ms-1" title="Export to Excel">
                                     Export Excel
                                 </a>
+                                <!-- Delete -->
+                                <form action="@Url.Action("DeleteFile", "Kpi")" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this file and all its data?');">
+                                    <input type="hidden" name="id" value="@item.File_Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-1">Delete</button>
+                                </form>
                             </td>
                         </tr>
                         i++;

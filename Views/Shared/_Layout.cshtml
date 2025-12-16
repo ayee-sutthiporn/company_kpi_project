@@ -16,21 +16,30 @@
                     aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
+
+            @{ 
+                string username = string.Empty;
+                username = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+            }
+
+
             <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
                 <ul class="navbar-nav flex-grow-1">
                     <li>@Html.ActionLink("Home", "Index", "Home", new { area = "" }, new { @class = "nav-link" })</li>
                     <li>@Html.ActionLink("About", "About", "Home", new { area = "" }, new { @class = "nav-link" })</li>
                     <li>@Html.ActionLink("Contact", "Contact", "Home", new { area = "" }, new { @class = "nav-link" })</li>
-                    <li>@Html.ActionLink("QA Admin", "Index", "Kpi", new { area = "" }, new { @class = "nav-link" })</li>
+                    @if (CompanyKPI_Project.Controllers.KpiController.IsQaAdmin(username))
+                    {
+                        <li>@Html.ActionLink("QA Admin", "Index", "Kpi", new { area = "" }, new { @class = "nav-link" })</li>
+                    }
                     <li>@Html.ActionLink("Dept KPI", "Index", "DepartmentKpi", new { area = "" }, new { @class = "nav-link" })</li>
                     <li>@Html.ActionLink("UserDashboard", "UserDashboard", "Kpi", new { area = "" }, new { @class = "nav-link" })</li>
                     <li>@Html.ActionLink("Summary", "Summary", "Kpi", new { area = "" }, new { @class = "nav-link" })</li>
-                    <li>@Html.ActionLink("Department KPI", "Index", "DepartmentKpi", new { area = "" }, new { @class = "nav-link" })</li>
                 </ul>
                 <div class="d-flex align-items-center text-white">
                     <i class="fa fa-user-circle me-2"></i>
                     <small>
-                        @(User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name)
+                        @(username)
                     </small>
                 </div>
             </div>

@@ -70,6 +70,9 @@ namespace CompanyKPI_Project.Models
         public string Hd_MainPIC { get; set; }
 
         [StringLength(255)]
+        public string Hd_RelatedPIC { get; set; }
+
+        [StringLength(255)]
         public string Hd_DetailDescription { get; set; }
 
         public DateTime? Hd_UpdateDate { get; set; }

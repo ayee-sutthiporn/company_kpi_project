@@ -27,6 +27,7 @@
                         <th style="width: 5%">No</th>
                         <th style="width: 40%">KPI Detail</th>
                         <th style="width: 10%">PIC</th>
+                        <th style="width: 10%">Related</th>
                         <th style="width: 10%">Condition</th>
                         <th style="width: 10%">Unit</th>
                         <th style="width: 10%">Update By</th>
@@ -47,6 +48,7 @@
                                 }
                             </td>
                             <td class="text-center">@item.Hd_MainPIC</td>
+                            <td class="text-center small text-muted">@item.Hd_RelatedPIC</td>
                             <td class="text-center">@item.Hd_Condition @item.Hd_TargetValue</td>
                             <td class="text-center">@item.Hd_Unit</td>
                             <td class="text-center">@item.Hd_UpdateBy</td>
@@ -138,11 +140,13 @@
                             <label class="form-label">PIC</label>
                             <select name="pic" id="pic" class="form-select" required>
                                 <option value="">-- Select PIC --</option>
-                                <option value="QA">QA</option>
-                                <option value="HR">HR</option>
-                                <option value="Production">Production</option>
-                                <option value="IT">IT</option>
-                                <option value="Sales">Sales</option>
+                                @if (ViewBag.Departments != null)
+                                {
+                                    foreach (var dept in ViewBag.Departments)
+                                    {
+                                        <option value="@dept">@dept</option>
+                                    }
+                                }
                             </select>
                         </div>
                     </div>

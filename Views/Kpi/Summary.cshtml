@@ -51,9 +51,49 @@
                             <td class="text-center text-danger fw-bold">@item.FailedCount</td>
                             <td class="text-center text-muted">@pending</td>
                             <td class="text-center">
+                                <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#dept-stats-@item.Year">
+                                    <i class="bi bi-list"></i> Details
+                                </button>
                                 <a href="@Url.Action("UserDashboard", "Kpi", new { year = item.Year })" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i> View
                                 </a>
+                            </td>
+                        </tr>
+                        <tr class="collapse" id="dept-stats-@item.Year">
+                            <td colspan="7" class="bg-light p-3">
+                                <h6>Department Breakdown (Measured)</h6>
+                                <table class="table table-sm table-bordered bg-white">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Department</th>
+                                            <th class="text-center">Measured Total</th>
+                                            <th class="text-center">Passed</th>
+                                            <th class="text-center">Not Achieved</th>
+                                            <th class="text-center">Success Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (item.DepartmentStats != null && item.DepartmentStats.Any())
+                                        {
+                                            foreach (var ds in item.DepartmentStats)
+                                            {
+                                                <tr>
+                                                    <td>@ds.DepartmentName</td>
+                                                    <td class="text-center">@ds.Total</td>
+                                                    <td class="text-center text-success">@ds.PassedCount</td>
+                                                    <td class="text-center text-danger">@ds.FailedCount</td>
+                                                    <td class="text-center">
+                                                        @ds.SuccessRate%
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr><td colspan="5" class="text-center text-muted">No specific department data available.</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
                             </td>
                         </tr>
                     }

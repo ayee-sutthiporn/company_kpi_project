@@ -10,5 +10,17 @@ namespace CompanyKPI_Project.Models
         public int PassedCount { get; set; }
         public int FailedCount { get; set; }
         public double SuccessRate { get; set; }
+
+        public List<DepartmentStatViewModel> DepartmentStats { get; set; }
+    }
+
+    public class DepartmentStatViewModel
+    {
+        public string DepartmentName { get; set; }
+        public int Total { get; set; }
+        public int PassedCount { get; set; }
+        public int FailedCount { get; set; }
+        public int PendingCount { get; set; }
+        public double SuccessRate { get; set; }
     }
 }

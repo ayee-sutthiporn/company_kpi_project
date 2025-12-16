@@ -126,6 +126,25 @@ namespace CompanyKPI_Project.Controllers
             }
         }
 
+        // Helper for QA Admin Authorization
+        public static bool IsQaAdmin(string username)
+        {
+            if (string.IsNullOrEmpty(username)) return false;
+            
+            // Hardcoded List of Authorized Users
+            // In Production, this should be an AD Group check or DB lookup
+            var authorizedUsers = new List<string> 
+            {
+                "SUTTIPORN\\YeE25",       // Current User
+                "QA_Manager", 
+                "Admin",
+                "System"
+            };
+
+            // Simple check - Case Insensitive
+            return authorizedUsers.Any(u => u.Equals(username, StringComparison.OrdinalIgnoreCase));
+        }
+
         public ActionResult Index()
         {
             var files = _mockFiles.Where(f => !f.File_IsDeleted).OrderByDescending(f => f.File_UploadDate).ToList();
@@ -137,7 +156,14 @@ namespace CompanyKPI_Project.Controllers
         {
             if (file != null && file.ContentLength > 0)
             {
-                // Mock Upload Logic
+                 // Check for duplicate FY
+                if (_mockFiles.Any(f => f.File_OfficialYear == year && !f.File_IsDeleted))
+                {
+                    TempData["Error"] = $"Data for FY {year} already exists.";
+                    return RedirectToAction("Index");
+                }
+
+                // Create File Record
                 var newId = _mockFiles.Any() ? _mockFiles.Max(f => f.File_Id) + 1 : 1;
                 var fileUpload = new TblTFileUpload
                 {
@@ -148,33 +174,116 @@ namespace CompanyKPI_Project.Controllers
                     File_OfficialYear = year,
                     File_IsDeleted = false,
                     File_UploadDate = DateTime.Now,
-                    File_UploadBy = "Mock User"
+                    File_UploadBy = "System" // Should be from User.Identity
                 };
                 _mockFiles.Add(fileUpload);
 
-                // Create Dummy KPI for this file
-                var hd = new TblTDataCompanyKpiHd
+                // Parse Excel
+                try
                 {
-                    Hd_Id = _mockHeaders.Count + 1,
-                    Hd_File_Id = newId,
-                    Hd_TopicNo = "1. NEW UPLOAD " + DateTime.Now.ToString("HH:mm"),
-                    Hd_Condition = ">=", Hd_TargetValue = 100, Hd_Unit = "%", Hd_MainPIC = "User",
-                    Hd_TrueDesc = "Pass", Hd_FalseDesc = "Fail"
-                };
-                _mockHeaders.Add(hd);
+                    using (var workbook = new ClosedXML.Excel.XLWorkbook(file.InputStream))
+                    {
+                        var worksheet = workbook.Worksheet(1); // First Sheet
+                        var rows = worksheet.RowsUsed().ToList();
+                        
+                        if(rows.Count > 1)
+                        {
+                            var headerRow = rows[0];
+                            var departmentMap = new Dictionary<int, string>(); // Column Index -> Dept Name
+                            int topicCol = -1;
 
-                var months = new DateTime(year, 4, 1);
-                for (int i = 0; i < 12; i++)
-                {
-                    _mockDetails.Add(new TblTDataCompanyKpiDt 
-                    { 
-                        DT_Id = _mockDetails.Count + 1, 
-                        DT_Hd_Id = hd.Hd_Id, 
-                        DT_File_Id = newId, 
-                        DT_Month = months.AddMonths(i), 
-                        DT_Result = "" 
-                    });
+                            // Parse Header
+                            foreach(var cell in headerRow.CellsUsed())
+                            {
+                                var val = cell.GetValue<string>().Trim();
+                                if(val.Equals("Topic", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    topicCol = cell.Address.ColumnNumber;
+                                }
+                                else
+                                {
+                                    // Assume Department Name (IT, LG, PC, etc.)
+                                    departmentMap.Add(cell.Address.ColumnNumber, val);
+                                }
+                            }
+
+                            if(topicCol != -1)
+                            {
+                                int hdId = _mockHeaders.Any() ? _mockHeaders.Max(h => h.Hd_Id) + 1 : 1;
+                                int dtId = _mockDetails.Any() ? _mockDetails.Max(d => d.DT_Id) + 1 : 1;
+                                
+                                // Parse Data Rows
+                                foreach(var row in rows.Skip(1))
+                                {
+                                    var topic = row.Cell(topicCol).GetValue<string>();
+                                    if(string.IsNullOrWhiteSpace(topic)) continue;
+
+                                    string mainPic = "";
+                                    List<string> relatedPics = new List<string>();
+
+                                    foreach(var kvp in departmentMap)
+                                    {
+                                        var val = row.Cell(kvp.Key).GetValue<string>().Trim().ToUpper();
+                                        if(val == "O") mainPic = kvp.Value;
+                                        else if(val == "E") relatedPics.Add(kvp.Value);
+                                    }
+
+                                    // Create Header
+                                    var hd = new TblTDataCompanyKpiHd
+                                    {
+                                        Hd_Id = hdId,
+                                        Hd_File_Id = newId,
+                                        Hd_TopicNo = topic,
+                                        Hd_Condition = ">=", // Default
+                                        Hd_TargetValue = 100, // Default
+                                        Hd_Unit = "%",       // Default
+                                        Hd_MainPIC = mainPic,
+                                        Hd_RelatedPIC = string.Join(", ", relatedPics),
+                                        Hd_TrueDesc = "Pass",
+                                        Hd_FalseDesc = "Fail",
+                                        Hd_IsTarget = true
+                                    };
+                                    _mockHeaders.Add(hd);
+
+                                    // Create Dummy Details
+                                    var startDate = new DateTime(year, 4, 1);
+                                    for(int i=0; i<12; i++)
+                                    {
+                                        _mockDetails.Add(new TblTDataCompanyKpiDt
+                                        {
+                                            DT_Id = dtId++,
+                                            DT_Hd_Id = hdId,
+                                            DT_File_Id = newId,
+                                            DT_Month = startDate.AddMonths(i),
+                                            DT_Result = ""
+                                        });
+                                    }
+
+                                    hdId++;
+                                }
+                            }
+                        }
+                    }
                 }
+                catch (Exception ex)
+                {
+                    // Handle Error (Log it)
+                    System.Diagnostics.Debug.WriteLine("Upload Error: " + ex.Message);
+                }
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public ActionResult DeleteFile(int id)
+        {
+            var file = _mockFiles.FirstOrDefault(f => f.File_Id == id);
+            if (file != null)
+            {
+                // Remove Data associated with file
+                _mockDetails.RemoveAll(d => d.DT_File_Id == id);
+                _mockHeaders.RemoveAll(h => h.Hd_File_Id == id);
+                _mockFiles.Remove(file);
             }
             return RedirectToAction("Index");
         }
@@ -185,6 +294,7 @@ namespace CompanyKPI_Project.Controllers
             if (file == null) return HttpNotFound();
 
             ViewBag.File = file;
+            ViewBag.Departments = new List<string> { "QA", "HR", "Production", "IT", "Sales" }; // Standardized List
             var headers = _mockHeaders.Where(h => h.Hd_File_Id == id).OrderBy(h => h.Hd_TopicNo).ToList();
             
             // Link Details manually
@@ -533,7 +643,11 @@ namespace CompanyKPI_Project.Controllers
 
                 foreach (var dt in details)
                 {
-                    if (!string.IsNullOrEmpty(dt.DT_Result))
+                    bool hasResult = !string.IsNullOrEmpty(dt.DT_Result);
+                    // Assuming current month is inclusive for due date
+                    bool isDue = dt.DT_Month <= DateTime.Now; 
+
+                    if (isDue || hasResult)
                     {
                         var hd = headers.FirstOrDefault(h => h.Hd_Id == dt.DT_Hd_Id);
                         if (hd != null)
@@ -551,6 +665,43 @@ namespace CompanyKPI_Project.Controllers
                     }
                 }
 
+                // Calculate Stats per Department
+                var deptStats = new List<DepartmentStatViewModel>();
+                var deptGroups = details.GroupBy(d => {
+                     var h = headers.FirstOrDefault(head => head.Hd_Id == d.DT_Hd_Id);
+                     return h != null ? h.Hd_MainPIC : "Unknown";
+                });
+
+                foreach(var grp in deptGroups)
+                {
+                    var dStats = new DepartmentStatViewModel { DepartmentName = grp.Key, Total = 0, PassedCount = 0, FailedCount = 0, PendingCount = 0 };
+                    foreach(var dt in grp)
+                    {
+                        bool hasResult = !string.IsNullOrEmpty(dt.DT_Result);
+                        bool isDue = dt.DT_Month <= DateTime.Now;
+
+                        if(isDue || hasResult)
+                        {
+                            var hd = headers.FirstOrDefault(h => h.Hd_Id == dt.DT_Hd_Id);
+                            if(hd != null)
+                            {
+                                dStats.Total++;
+                                if(dt.DT_Result == hd.Hd_TrueDesc) dStats.PassedCount++;
+                                else if(dt.DT_Result == hd.Hd_FalseDesc) dStats.FailedCount++;
+                                else dStats.PendingCount++;
+                            }
+                        }
+                    }
+                    // Pending calculation based on total months - measured? Or just from Result?
+                    // Logic above only counts measured items. Pending/Other in main logic included unmeasured?
+                    // Main logic: TotalMeasurements = total measured.
+                    // Pending in View = TotalMeasurements - Pass - Fail.
+                    // Let's stick to "Measured" stats for now.
+                    
+                    dStats.SuccessRate = dStats.Total > 0 ? Math.Round(((double)dStats.PassedCount / dStats.Total) * 100, 1) : 0;
+                    deptStats.Add(dStats);
+                }
+
                 summaries.Add(new YearlyKpiSummaryViewModel
                 {
                     Year = year ?? 0,
@@ -558,7 +709,8 @@ namespace CompanyKPI_Project.Controllers
                     TotalMeasurements = totalMeasurements,
                     PassedCount = passed,
                     FailedCount = failed,
-                    SuccessRate = totalMeasurements > 0 ? Math.Round(((double)passed / totalMeasurements) * 100, 1) : 0
+                    SuccessRate = totalMeasurements > 0 ? Math.Round(((double)passed / totalMeasurements) * 100, 1) : 0,
+                    DepartmentStats = deptStats.OrderBy(d => d.DepartmentName).ToList()
                 });
             }
 
