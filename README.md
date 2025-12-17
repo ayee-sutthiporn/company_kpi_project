@@ -73,6 +73,40 @@ Stores the monthly details, results, and progress for each KPI Header.
 
 ---
 
+### 4. `tbl_t_dept_upload`
+
+Stores department KPI upload information.
+
+| Column      | Type       | Max Length | Nullable | Description                      |
+| :---------- | :--------- | :--------- | :------- | :------------------------------- |
+| **Id**      | `int`      | -          | No       | **PK** Identity (Auto-increment) |
+| Year        | `int`      | -          | No       | Fiscal Year                      |
+| Month       | `int`      | -          | No       | Calendar Month (1-12)            |
+| Department  | `string`   | 50         | Yes      | Department Name                  |
+| FileName    | `string`   | 200        | Yes      | Uploaded file name               |
+| UploadDate  | `datetime` | -          | No       | Date and time of upload          |
+| UploadBy    | `string`   | 100        | Yes      | User who uploaded the file       |
+| FileContent | `byte[]`   | -          | Yes      | Binary file content              |
+| ContentType | `string`   | 200        | Yes      | File MIME type                   |
+
+---
+
+### 5. `tbl_t_application_log`
+
+Stores application execution logs and errors.
+
+| Column    | Type       | Max Length | Nullable | Description                      |
+| :-------- | :--------- | :--------- | :------- | :------------------------------- |
+| **Id**    | `int`      | -          | No       | **PK** Identity (Auto-increment) |
+| LogDate   | `datetime` | -          | No       | Date and time of the log         |
+| Level     | `string`   | 50         | Yes      | Log Level (Info, Warning, Error) |
+| Message   | `string`   | Max        | Yes      | Log message content              |
+| Source    | `string`   | 100        | Yes      | Source (e.g., Controller/Action) |
+| User      | `string`   | 100        | Yes      | User associated with the log     |
+| Exception | `string`   | Max        | Yes      | Exception details (if any)       |
+
+---
+
 ## Entity Relationship Diagram (ERD)
 
 ```mermaid
@@ -99,5 +133,19 @@ erDiagram
         datetime DT_Month
         string DT_ActualValue
         string DT_Result
+    }
+
+    tbl_t_dept_upload {
+        int Id PK
+        int Year
+        int Month
+        string Department
+    }
+
+    tbl_t_application_log {
+        int Id PK
+        datetime LogDate
+        string Level
+        string Message
     }
 ```
