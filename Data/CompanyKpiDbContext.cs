@@ -16,6 +16,7 @@ namespace CompanyKPI_Project.Data
         public DbSet<TblTFileUpload> FileUploads { get; set; }
         public DbSet<TblTDataCompanyKpiHd> KpiHeaders { get; set; }
         public DbSet<TblTDataCompanyKpiDt> KpiDetails { get; set; }
+        public DbSet<DeptKpiUpload> DeptUploads { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {

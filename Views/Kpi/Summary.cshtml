@@ -69,6 +69,7 @@
                                             <th class="text-center">Measured Total</th>
                                             <th class="text-center">Passed</th>
                                             <th class="text-center">Not Achieved</th>
+                                            <th class="text-center">Pending/Other</th>
                                             <th class="text-center">Success Rate</th>
                                         </tr>
                                     </thead>
@@ -82,6 +83,7 @@
                                                     <td class="text-center">@ds.Total</td>
                                                     <td class="text-center text-success">@ds.PassedCount</td>
                                                     <td class="text-center text-danger">@ds.FailedCount</td>
+                                                    <td class="text-center text-muted">@ds.PendingCount</td>
                                                     <td class="text-center">
                                                         @ds.SuccessRate%
                                                     </td>

@@ -9,7 +9,6 @@
     <div class="row mb-3 align-items-center">
         <div class="col">
             <h3>Company KPI Detail <small class="text-muted">(FY @(file != null ? file.File_OfficialYear.ToString() : "N/A"))</small></h3>
-            <div class="text-muted">Double click to Update detail</div>
         </div>
         <div class="col-auto">
              <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addItemModal">
@@ -25,14 +24,15 @@
                 <thead class="table-light text-center">
                     <tr>
                         <th style="width: 5%">No</th>
-                        <th style="width: 40%">KPI Detail</th>
+                        <th style="width: 35%">KPI Detail</th>
+                        <th style="width: 8%">Condition</th>
+                        <th style="width: 8%">Target</th>
+                        <th style="width: 8%">Unit</th>
                         <th style="width: 10%">PIC</th>
                         <th style="width: 10%">Related</th>
-                        <th style="width: 10%">Condition</th>
-                        <th style="width: 10%">Unit</th>
                         <th style="width: 10%">Update By</th>
-                        <th style="width: 15%">Update Date</th>
-                        <th style="width: 5%">Action</th>
+                        <th style="width: 10%">Update Date</th>
+                        <th style="width: 8%">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,10 +47,11 @@
                                     <br/><small class="text-muted">@item.Hd_DetailDescription</small>
                                 }
                             </td>
+                            <td class="text-center">@item.Hd_Condition</td>
+                            <td class="text-center">@item.Hd_TargetValue</td>
+                            <td class="text-center">@item.Hd_Unit</td>
                             <td class="text-center">@item.Hd_MainPIC</td>
                             <td class="text-center small text-muted">@item.Hd_RelatedPIC</td>
-                            <td class="text-center">@item.Hd_Condition @item.Hd_TargetValue</td>
-                            <td class="text-center">@item.Hd_Unit</td>
                             <td class="text-center">@item.Hd_UpdateBy</td>
                             <td class="text-center">@(item.Hd_UpdateDate.HasValue ? item.Hd_UpdateDate.Value.ToString("dd-MM-yyyy") : "")</td>
                             <td class="text-center">
@@ -99,7 +100,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Topic / No</label>
+                        <label class="form-label">Topic / No <span class="text-danger">*</span></label>
                         <input type="text" name="topic" id="topic" class="form-control" placeholder="e.g. 1. New KPI" required />
                     </div>
                     
@@ -115,7 +116,7 @@
                             </select>
                         </div>
                         <div class="col-6 mb-3">
-                            <label class="form-label">Target</label>
+                            <label class="form-label">Target <span class="text-danger">*</span></label>
                             <input type="number" name="target" id="target" class="form-control" required />
                         </div>
                     </div>
@@ -137,7 +138,7 @@
                             <input type="text" name="unit" id="unit" class="form-control" value="PPM" />
                         </div>
                          <div class="col-6 mb-3">
-                            <label class="form-label">PIC</label>
+                            <label class="form-label">PIC <span class="text-danger">*</span></label>
                             <select name="pic" id="pic" class="form-select" required>
                                 <option value="">-- Select PIC --</option>
                                 @if (ViewBag.Departments != null)

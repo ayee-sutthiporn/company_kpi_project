@@ -5,124 +5,31 @@ using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
+using CompanyKPI_Project.Repositories;
 
 namespace CompanyKPI_Project.Controllers
 {
     public class KpiController : Controller
     {
-        // Mock Data Store
-        public static List<TblTFileUpload> _mockFiles = new List<TblTFileUpload>();
-        public static List<TblTDataCompanyKpiHd> _mockHeaders = new List<TblTDataCompanyKpiHd>();
-        public static List<TblTDataCompanyKpiDt> _mockDetails = new List<TblTDataCompanyKpiDt>();
+        private IKpiRepository _repository;
 
-        static KpiController()
+        public KpiController()
         {
-            // Seed Mock Data on startup
-            SeedMockData();
-        }
-
-        private static void SeedMockData()
-        {
-            if (!_mockFiles.Any())
+            // Simple Dependency Injection Resolution
+            bool useEf = false;
+            var configVal = System.Web.Configuration.WebConfigurationManager.AppSettings["UseEfRepository"];
+            if (!string.IsNullOrEmpty(configVal))
             {
-                var years = new[] { 2023, 2024, 2025 };
-                var departments = new[] { "QA", "HR", "Production", "IT", "Sales" };
-                var kpiTemplates = new[]
-                {
-                    new { Topic = "Customer claim reduction", Unit = "PPM", Target = 20, Cond = "<=", Dept = "QA", True = "Achieve", False = "Not Achieve" },
-                    new { Topic = "Internal Claim reduction", Unit = "PPM", Target = 5, Cond = "<=", Dept = "QA", True = "Achieve", False = "Not Achieve" },
-                    new { Topic = "Employee Turnover Rate", Unit = "%", Target = 5, Cond = "<=", Dept = "HR", True = "Pass", False = "Fail" },
-                    new { Topic = "Training Hrs / Employee", Unit = "Hrs", Target = 12, Cond = ">=", Dept = "HR", True = "Pass", False = "Fail" },
-                    new { Topic = "Production Yield", Unit = "%", Target = 98, Cond = ">=", Dept = "Production", True = "Achieve", False = "Not Achieve" },
-                    new { Topic = "Machine Downtime", Unit = "%", Target = 2, Cond = "<=", Dept = "Production", True = "Achieve", False = "Not Achieve" },
-                    new { Topic = "System Uptime", Unit = "%", Target = 99, Cond = ">=", Dept = "IT", True = "Pass", False = "Fail" },
-                    new { Topic = "Sales Growth", Unit = "%", Target = 10, Cond = ">=", Dept = "Sales", True = "Achieve", False = "Not Achieve" }
-                };
+                bool.TryParse(configVal, out useEf);
+            }
 
-                int fileId = 1;
-                int hdId = 1;
-                int dtId = 1;
-                var random = new Random();
-
-                foreach (var year in years)
-                {
-                    // Create File
-                    _mockFiles.Add(new TblTFileUpload
-                    {
-                        File_Id = fileId,
-                        File_Name = $"Master_KPI_{year}.xlsx",
-                        File_OfficialYear = year,
-                        File_UploadBy = "System",
-                        File_UploadDate = DateTime.Now.AddDays(-365 * (2025 - year)),
-                        File_Type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        File_IsDeleted = false
-                    });
-
-                    // Create Headers
-                    foreach (var t in kpiTemplates)
-                    {
-                        var hd = new TblTDataCompanyKpiHd
-                        {
-                            Hd_Id = hdId,
-                            Hd_File_Id = fileId,
-                            Hd_TopicNo = $"{hdId}. {t.Topic}",
-                            Hd_Condition = t.Cond,
-                            Hd_TargetValue = t.Target,
-                            Hd_Unit = t.Unit,
-                            Hd_MainPIC = t.Dept,
-                            Hd_TrueDesc = t.True,
-                            Hd_FalseDesc = t.False,
-                            Hd_IsTarget = true,
-                            Hd_DetailDescription = $"Target for {year}: {t.Cond} {t.Target} {t.Unit}"
-                        };
-                        _mockHeaders.Add(hd);
-
-                        // Create Details (Year Starts April)
-                        var startDate = new DateTime(year, 4, 1);
-                        for (int i = 0; i < 12; i++)
-                        {
-                            var currentMonth = startDate.AddMonths(i);
-                            var isPast = currentMonth < DateTime.Now; // Check if month is in the past relative to execution time
-                            
-                            string result = "";
-                            string actual = "";
-                            string udate = "";
-
-                            // Logic: 
-                            // 2023, 2024: All filled
-                            // 2025: Filled until current month (Simulated as Dec 2025 based on prompt time?) 
-                            // Actually context says "current local time is 2025-12-15".
-                            
-                            if (currentMonth <= DateTime.Now)
-                            {
-                                // Generate Random Result
-                                bool pass = random.NextDouble() > 0.3; // 70% Pass Rate
-                                double val = t.Target;
-                                
-                                if (t.Cond == ">=") val = pass ? t.Target + random.Next(1, 10) : t.Target - random.Next(1, 5);
-                                else if (t.Cond == "<=") val = pass ? t.Target - random.Next(1, 3) : t.Target + random.Next(1, 5);
-                                
-                                actual = val.ToString("0.##");
-                                result = pass ? t.True : t.False;
-                                udate = "System";
-                            }
-
-                            _mockDetails.Add(new TblTDataCompanyKpiDt
-                            {
-                                DT_Id = dtId++,
-                                DT_Hd_Id = hd.Hd_Id,
-                                DT_File_Id = fileId,
-                                DT_Month = currentMonth,
-                                DT_Result = result,
-                                DT_ActualValue = actual,
-                                DT_UpdateDate = DateTime.Now,
-                                DT_UpdateBy = udate
-                            });
-                        }
-                        hdId++;
-                    }
-                    fileId++;
-                }
+            if (useEf)
+            {
+                _repository = new EfKpiRepository();
+            }
+            else
+            {
+                _repository = new MockKpiRepository();
             }
         }
 
@@ -132,7 +39,6 @@ namespace CompanyKPI_Project.Controllers
             if (string.IsNullOrEmpty(username)) return false;
             
             // Hardcoded List of Authorized Users
-            // In Production, this should be an AD Group check or DB lookup
             var authorizedUsers = new List<string> 
             {
                 "SUTTIPORN\\YeE25",       // Current User
@@ -147,7 +53,7 @@ namespace CompanyKPI_Project.Controllers
 
         public ActionResult Index()
         {
-            var files = _mockFiles.Where(f => !f.File_IsDeleted).OrderByDescending(f => f.File_UploadDate).ToList();
+            var files = _repository.GetAllFiles();
             return View(files);
         }
 
@@ -156,18 +62,17 @@ namespace CompanyKPI_Project.Controllers
         {
             if (file != null && file.ContentLength > 0)
             {
-                 // Check for duplicate FY
-                if (_mockFiles.Any(f => f.File_OfficialYear == year && !f.File_IsDeleted))
+                // Check for duplicate FY
+                if (_repository.FileExistsForYear(year))
                 {
                     TempData["Error"] = $"Data for FY {year} already exists.";
                     return RedirectToAction("Index");
                 }
 
                 // Create File Record
-                var newId = _mockFiles.Any() ? _mockFiles.Max(f => f.File_Id) + 1 : 1;
                 var fileUpload = new TblTFileUpload
                 {
-                    File_Id = newId,
+                    // ID handled by Repo
                     File_Name = Path.GetFileName(file.FileName),
                     File_Type = file.ContentType,
                     File_Extension = Path.GetExtension(file.FileName),
@@ -176,7 +81,8 @@ namespace CompanyKPI_Project.Controllers
                     File_UploadDate = DateTime.Now,
                     File_UploadBy = "System" // Should be from User.Identity
                 };
-                _mockFiles.Add(fileUpload);
+                _repository.AddFile(fileUpload);
+                int newId = fileUpload.File_Id;
 
                 // Parse Excel
                 try
@@ -191,14 +97,29 @@ namespace CompanyKPI_Project.Controllers
                             var headerRow = rows[0];
                             var departmentMap = new Dictionary<int, string>(); // Column Index -> Dept Name
                             int topicCol = -1;
+                            int conditionCol = -1;
+                            int targetCol = -1;
+                            int unitCol = -1;
 
                             // Parse Header
                             foreach(var cell in headerRow.CellsUsed())
                             {
                                 var val = cell.GetValue<string>().Trim();
-                                if(val.Equals("Topic", StringComparison.OrdinalIgnoreCase))
+                                if(val.Equals("Topic", StringComparison.OrdinalIgnoreCase) || val.Equals("KPI Detail", StringComparison.OrdinalIgnoreCase))
                                 {
                                     topicCol = cell.Address.ColumnNumber;
+                                }
+                                else if (val.Equals("Condition", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    conditionCol = cell.Address.ColumnNumber;
+                                }
+                                else if (val.Equals("Target", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    targetCol = cell.Address.ColumnNumber;
+                                }
+                                else if (val.Equals("Unit", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    unitCol = cell.Address.ColumnNumber;
                                 }
                                 else
                                 {
@@ -209,14 +130,22 @@ namespace CompanyKPI_Project.Controllers
 
                             if(topicCol != -1)
                             {
-                                int hdId = _mockHeaders.Any() ? _mockHeaders.Max(h => h.Hd_Id) + 1 : 1;
-                                int dtId = _mockDetails.Any() ? _mockDetails.Max(d => d.DT_Id) + 1 : 1;
-                                
                                 // Parse Data Rows
                                 foreach(var row in rows.Skip(1))
                                 {
                                     var topic = row.Cell(topicCol).GetValue<string>();
                                     if(string.IsNullOrWhiteSpace(topic)) continue;
+
+                                    var condition = (conditionCol != -1) ? row.Cell(conditionCol).GetValue<string>() : ">=";
+                                    var targetValStr = (targetCol != -1) ? row.Cell(targetCol).GetValue<string>() : "100";
+                                    var unit = (unitCol != -1) ? row.Cell(unitCol).GetValue<string>() : "%";
+                                    
+                                    // Default fallback values
+                                    if(string.IsNullOrEmpty(condition)) condition = ">=";
+                                    if(string.IsNullOrEmpty(unit)) unit = "%";
+                                    
+                                    int targetValue = 100;
+                                    int.TryParse(targetValStr, out targetValue);
 
                                     string mainPic = "";
                                     List<string> relatedPics = new List<string>();
@@ -231,35 +160,35 @@ namespace CompanyKPI_Project.Controllers
                                     // Create Header
                                     var hd = new TblTDataCompanyKpiHd
                                     {
-                                        Hd_Id = hdId,
+                                        // Hd_Id handled by Repo
                                         Hd_File_Id = newId,
                                         Hd_TopicNo = topic,
-                                        Hd_Condition = ">=", // Default
-                                        Hd_TargetValue = 100, // Default
-                                        Hd_Unit = "%",       // Default
+                                        Hd_Condition = condition,
+                                        Hd_TargetValue = targetValue,
+                                        Hd_Unit = unit,
                                         Hd_MainPIC = mainPic,
                                         Hd_RelatedPIC = string.Join(", ", relatedPics),
-                                        Hd_TrueDesc = "Pass",
-                                        Hd_FalseDesc = "Fail",
+                                        Hd_TrueDesc = "Pass", // Default
+                                        Hd_FalseDesc = "Fail", // Default
                                         Hd_IsTarget = true
                                     };
-                                    _mockHeaders.Add(hd);
-
+                                    _repository.AddHeader(hd);
+                                    
                                     // Create Dummy Details
+                                    var detailsList = new List<TblTDataCompanyKpiDt>();
                                     var startDate = new DateTime(year, 4, 1);
                                     for(int i=0; i<12; i++)
                                     {
-                                        _mockDetails.Add(new TblTDataCompanyKpiDt
+                                        detailsList.Add(new TblTDataCompanyKpiDt
                                         {
-                                            DT_Id = dtId++,
-                                            DT_Hd_Id = hdId,
+                                            // DT_Id handled by Repo
+                                            DT_Hd_Id = hd.Hd_Id,
                                             DT_File_Id = newId,
                                             DT_Month = startDate.AddMonths(i),
                                             DT_Result = ""
                                         });
                                     }
-
-                                    hdId++;
+                                    _repository.AddDetails(detailsList);
                                 }
                             }
                         }
@@ -277,30 +206,26 @@ namespace CompanyKPI_Project.Controllers
         [HttpPost]
         public ActionResult DeleteFile(int id)
         {
-            var file = _mockFiles.FirstOrDefault(f => f.File_Id == id);
-            if (file != null)
-            {
-                // Remove Data associated with file
-                _mockDetails.RemoveAll(d => d.DT_File_Id == id);
-                _mockHeaders.RemoveAll(h => h.Hd_File_Id == id);
-                _mockFiles.Remove(file);
-            }
+            _repository.DeleteFile(id);
             return RedirectToAction("Index");
         }
 
         public ActionResult AdminDetail(int id)
         {
-            var file = _mockFiles.FirstOrDefault(f => f.File_Id == id);
+            var file = _repository.GetFileById(id);
             if (file == null) return HttpNotFound();
 
             ViewBag.File = file;
             ViewBag.Departments = new List<string> { "QA", "HR", "Production", "IT", "Sales" }; // Standardized List
-            var headers = _mockHeaders.Where(h => h.Hd_File_Id == id).OrderBy(h => h.Hd_TopicNo).ToList();
+            var headers = _repository.GetHeadersByFileId(id).ToList();
             
-            // Link Details manually
+            // Link Details manually (Repository might return disconnected entities in Mock, or proxy in EF)
+            // But for View display, we need Details populated.
+            // EF w/ Lazy Loading handles it, but Mock doesn't automatically link unless we explicitly do it in GetHeaders or here.
+            
             foreach(var h in headers)
             {
-                h.Details = _mockDetails.Where(d => d.DT_Hd_Id == h.Hd_Id).ToList();
+                h.Details = _repository.GetDetailsByHeaderId(h.Hd_Id).ToList();
             }
 
             return View(headers);
@@ -309,14 +234,14 @@ namespace CompanyKPI_Project.Controllers
         public ActionResult UserResult(int id)
         {
             // Direct access (fallback if needed)
-            var file = _mockFiles.FirstOrDefault(f => f.File_Id == id);
+            var file = _repository.GetFileById(id);
             if (file == null) return HttpNotFound();
 
             ViewBag.File = file;
-            var headers = _mockHeaders.Where(h => h.Hd_File_Id == id).ToList();
+            var headers = _repository.GetHeadersByFileId(id).ToList();
              foreach(var h in headers)
             {
-                h.Details = _mockDetails.Where(d => d.DT_Hd_Id == h.Hd_Id).ToList();
+                h.Details = _repository.GetDetailsByHeaderId(h.Hd_Id).ToList();
             }
             return View(headers);
         }
@@ -327,15 +252,16 @@ namespace CompanyKPI_Project.Controllers
             int targetYear = year ?? DateTime.Now.Year;
             
             // Find file
-            var file = _mockFiles.FirstOrDefault(f => f.File_OfficialYear == targetYear);
-            if (file == null) file = _mockFiles.OrderByDescending(f => f.File_OfficialYear).FirstOrDefault();
+            var file = _repository.GetFileByYear(targetYear);
+            // Fallback logic
+            if (file == null) file = _repository.GetAllFiles().FirstOrDefault();
 
             if (file == null) return View("UserResult", new List<TblTDataCompanyKpiHd>());
 
             ViewBag.File = file;
             ViewBag.CurrentYear = targetYear;
 
-            var allHeaders = _mockHeaders.Where(h => h.Hd_File_Id == file.File_Id).ToList();
+            var allHeaders = _repository.GetHeadersByFileId(file.File_Id).ToList();
 
             // Department Selection Logic
             if (string.IsNullOrEmpty(dept))
@@ -353,7 +279,7 @@ namespace CompanyKPI_Project.Controllers
              // Link Details
             foreach(var h in headers)
             {
-                h.Details = _mockDetails.Where(d => d.DT_Hd_Id == h.Hd_Id).ToList();
+                h.Details = _repository.GetDetailsByHeaderId(h.Hd_Id).ToList();
             }
 
             return View("UserResult", headers);
@@ -362,7 +288,7 @@ namespace CompanyKPI_Project.Controllers
         [HttpPost]
         public ActionResult UpdateDetail(int dtId, string resultValue, HttpPostedFileBase fileProgressive, HttpPostedFileBase fileActionPlan)
         {
-            var dt = _mockDetails.FirstOrDefault(d => d.DT_Id == dtId);
+            var dt = _repository.GetDetailById(dtId);
             if (dt != null)
             {
                 // Validation: Prevent Future Updates
@@ -371,7 +297,7 @@ namespace CompanyKPI_Project.Controllers
                      return Json(new { success = false, message = "Cannot update future months." });
                 }
 
-                var hd = _mockHeaders.FirstOrDefault(h => h.Hd_Id == dt.DT_Hd_Id);
+                var hd = _repository.GetHeaderById(dt.DT_Hd_Id ?? 0);
                 var finalResult = resultValue;
                 bool isPass = false;
 
@@ -395,7 +321,7 @@ namespace CompanyKPI_Project.Controllers
                 dt.DT_ActualValue = resultValue; // Store raw value
                 dt.DT_Result = finalResult;      // Store Result Text (Achieve/Fail)
                 dt.DT_UpdateDate = DateTime.Now;
-                dt.DT_UpdateBy = "Mock User";
+                dt.DT_UpdateBy = "Mock User"; // Or Identity
                 
                 // Save Files
                 var uploadDir = Server.MapPath("~/App_Data/KpiResultFiles");
@@ -416,6 +342,8 @@ namespace CompanyKPI_Project.Controllers
                     dt.DT_ActionPlanFile = fileName;
                 }
 
+                _repository.UpdateDetail(dt);
+
                 return Json(new { success = true, result = finalResult, isPass = isPass });
             }
             return Json(new { success = false, message = "Item not found" });
@@ -423,7 +351,7 @@ namespace CompanyKPI_Project.Controllers
 
         public ActionResult DownloadResultFile(int dtId, string type)
         {
-            var dt = _mockDetails.FirstOrDefault(d => d.DT_Id == dtId);
+            var dt = _repository.GetDetailById(dtId);
             if (dt != null)
             {
                 var uploadDir = Server.MapPath("~/App_Data/KpiResultFiles");
@@ -445,16 +373,18 @@ namespace CompanyKPI_Project.Controllers
         [HttpPost]
         public ActionResult DeleteResultFile(int dtId, string type)
         {
-            var dt = _mockDetails.FirstOrDefault(d => d.DT_Id == dtId);
+            var dt = _repository.GetDetailById(dtId);
             if (dt != null)
             {
                 var uploadDir = Server.MapPath("~/App_Data/KpiResultFiles");
                 string fileName = (type == "prog") ? dt.DT_ProgressiveFile : dt.DT_ActionPlanFile;
                 string prefix = (type == "prog") ? "P" : "A";
 
-                // Nullify in DB (Mock)
+                // Nullify
                 if (type == "prog") dt.DT_ProgressiveFile = null;
                 else dt.DT_ActionPlanFile = null;
+
+                _repository.UpdateDetail(dt);
 
                 // Delete from disk (Try-Catch to avoid crash if locked)
                 try {
@@ -481,7 +411,7 @@ namespace CompanyKPI_Project.Controllers
             if (hdId.HasValue && hdId.Value > 0)
             {
                 // Edit
-                hd = _mockHeaders.FirstOrDefault(h => h.Hd_Id == hdId.Value);
+                hd = _repository.GetHeaderById(hdId.Value);
                 if (hd != null)
                 {
                     hd.Hd_TopicNo = topic;
@@ -491,15 +421,15 @@ namespace CompanyKPI_Project.Controllers
                     hd.Hd_MainPIC = pic;
                     hd.Hd_TrueDesc = trueDesc;
                     hd.Hd_FalseDesc = falseDesc;
+                    _repository.UpdateHeader(hd);
                 }
             }
             else
             {
                 // Add
-                var newId = _mockHeaders.Any() ? _mockHeaders.Max(h => h.Hd_Id) + 1 : 1;
+                // Hd_Id handled by Repo
                 hd = new TblTDataCompanyKpiHd
                 {
-                    Hd_Id = newId,
                     Hd_File_Id = fileId,
                     Hd_TopicNo = topic,
                     Hd_Condition = condition,
@@ -510,25 +440,26 @@ namespace CompanyKPI_Project.Controllers
                     Hd_FalseDesc = falseDesc,
                     Hd_IsTarget = true
                 };
-                _mockHeaders.Add(hd);
+                _repository.AddHeader(hd);
 
                 // Details
-                var file = _mockFiles.FirstOrDefault(f => f.File_Id == fileId);
+                var file = _repository.GetFileById(fileId);
                 var year = file?.File_OfficialYear ?? 2025;
                 var startDate = new DateTime(year, 4, 1);
                 
-                int startDtId = _mockDetails.Any() ? _mockDetails.Max(d => d.DT_Id) + 1 : 1;
+                var detailsList = new List<TblTDataCompanyKpiDt>();
                 for(int i=0; i<12; i++)
                 {
-                    _mockDetails.Add(new TblTDataCompanyKpiDt
+                    detailsList.Add(new TblTDataCompanyKpiDt
                     {
-                        DT_Id = startDtId + i,
-                        DT_Hd_Id = newId,
+                        // DT_Id handled by Repo
+                        DT_Hd_Id = hd.Hd_Id,
                         DT_File_Id = fileId,
                         DT_Month = startDate.AddMonths(i),
                         DT_Result = ""
                     });
                 }
+                _repository.AddDetails(detailsList);
             }
             return RedirectToAction("AdminDetail", new { id = fileId });
         }
@@ -536,27 +467,18 @@ namespace CompanyKPI_Project.Controllers
         [HttpPost]
         public ActionResult DeleteItem(int id)
         {
-            var hd = _mockHeaders.FirstOrDefault(h => h.Hd_Id == id);
-            if (hd != null)
-            {
-                // Remove Details first
-                _mockDetails.RemoveAll(d => d.DT_Hd_Id == id);
-                
-                // Remove Header
-                _mockHeaders.Remove(hd);
-                
-                return Json(new { success = true });
-            }
-            return Json(new { success = false, message = "Item not found" });
+            // Repo handles cascading logic now
+            _repository.DeleteHeader(id);
+            return Json(new { success = true });
         }
 
         public ActionResult Export(int id)
         {
-            var file = _mockFiles.FirstOrDefault(f => f.File_Id == id);
+            var file = _repository.GetFileById(id);
             if (file == null) return HttpNotFound();
 
-            var headers = _mockHeaders.Where(h => h.Hd_File_Id == id).OrderBy(h => h.Hd_TopicNo).ToList();
-            var details = _mockDetails.Where(d => d.DT_File_Id == id).ToList();
+            var headers = _repository.GetHeadersByFileId(id).ToList();
+            var details = _repository.GetDetailsByFileId(id).ToList();
 
             using (var workbook = new ClosedXML.Excel.XLWorkbook())
             {
@@ -625,16 +547,25 @@ namespace CompanyKPI_Project.Controllers
 
         public ActionResult Summary() { 
             var summaries = new List<YearlyKpiSummaryViewModel>();
-            var years = _mockFiles.Select(f => f.File_OfficialYear).Distinct().OrderByDescending(y => y).ToList();
+            var allFiles = _repository.GetAllFiles();
+            var years = allFiles.Select(f => f.File_OfficialYear).Distinct().OrderByDescending(y => y).ToList();
 
             foreach (var year in years)
             {
-                // Get all files for this year (usually just one, but handling duplicates)
-                var fileIds = _mockFiles.Where(f => f.File_OfficialYear == year).Select(f => f.File_Id).ToList();
+                // Get all files for this year
+                var fileIds = allFiles.Where(f => f.File_OfficialYear == year).Select(f => f.File_Id).ToList();
                 
-                var headers = _mockHeaders.Where(h => fileIds.Contains(h.Hd_File_Id ?? 0)).ToList();
+                // For Summary, we might need bulk retrieval. Using existing methods for now.
+                // In optimization, Repo should have GetDetailsByYear or similar.
+                
+                var headers = new List<TblTDataCompanyKpiHd>();
+                var details = new List<TblTDataCompanyKpiDt>();
+
+                foreach(var fid in fileIds) {
+                    headers.AddRange(_repository.GetHeadersByFileId(fid));
+                    details.AddRange(_repository.GetDetailsByFileId(fid)); // Optimized Repo method?
+                }
                 var headerIds = headers.Select(h => h.Hd_Id).ToList();
-                var details = _mockDetails.Where(d => headerIds.Contains(d.DT_Hd_Id ?? 0)).ToList();
 
                 // Calculate Stats
                 int totalMeasurements = 0;
@@ -715,6 +646,15 @@ namespace CompanyKPI_Project.Controllers
             }
 
             return View(summaries);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _repository?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }

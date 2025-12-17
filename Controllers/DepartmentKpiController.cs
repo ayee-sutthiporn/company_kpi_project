@@ -1,4 +1,5 @@
 using CompanyKPI_Project.Models;
+using CompanyKPI_Project.Repositories;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,8 +11,27 @@ namespace CompanyKPI_Project.Controllers
 {
     public class DepartmentKpiController : Controller
     {
-        // Mock Data
-        public static List<DeptKpiUpload> _mockDeptUploads = new List<DeptKpiUpload>();
+        private IKpiRepository _repository;
+
+        public DepartmentKpiController()
+        {
+            // Simple Dependency Injection Resolution
+            bool useEf = false;
+            var configVal = System.Web.Configuration.WebConfigurationManager.AppSettings["UseEfRepository"];
+            if (!string.IsNullOrEmpty(configVal))
+            {
+                bool.TryParse(configVal, out useEf);
+            }
+
+            if (useEf)
+            {
+                _repository = new EfKpiRepository();
+            }
+            else
+            {
+                _repository = new MockKpiRepository();
+            }
+        }
 
         // Default to Current Year and first Department if not specified
         public ActionResult Index(int? year, string dept)
@@ -34,15 +54,13 @@ namespace CompanyKPI_Project.Controllers
             };
 
             // Generate 12 Months (April to March Fiscal Year)
-            // Fiscal Year 2025 = Apr 2025 to Mar 2026? Or Jan-Dec?
-            // User context suggests "Fiscal Year" logic in previous steps (Apr start). 
-            // Let's stick to Fiscal Year (Apr start).
             var startDate = new DateTime(targetYear, 4, 1);
+            var uploads = _repository.GetDeptUploads(targetYear, targetDept).ToList();
             
             for (int i = 0; i < 12; i++)
             {
                 var d = startDate.AddMonths(i);
-                var upload = _mockDeptUploads.FirstOrDefault(u => u.Year == targetYear && u.Month == d.Month && u.Department == targetDept);
+                var upload = uploads.FirstOrDefault(u => u.Month == d.Month);
                 
                 model.Months.Add(new DeptMonthItem
                 {
@@ -61,35 +79,40 @@ namespace CompanyKPI_Project.Controllers
             if (file != null && file.ContentLength > 0)
             {
                 // Remove existing
-                _mockDeptUploads.RemoveAll(u => u.Year == year && u.Month == month && u.Department == dept);
+                _repository.ClearDeptUpload(year, month, dept);
 
-                var newId = _mockDeptUploads.Any() ? _mockDeptUploads.Max(u => u.Id) + 1 : 1;
-                
                 // Save to Disk for Download
                 var fileName = Path.GetFileName(file.FileName);
                 var uploadDir = Server.MapPath("~/App_Data/DeptUploads");
                 if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
                 
-                var filePath = Path.Combine(uploadDir, $"{newId}_{fileName}");
-                file.SaveAs(filePath);
-
-                _mockDeptUploads.Add(new DeptKpiUpload
+                // We need an ID for the file name. EF assigns it on save. Mock assigns it on Add.
+                // This is tricky for EF if we want ID before Save. 
+                // Creating a temp object first?
+                // MockRepo logic: Add first, then get ID? 
+                // Let's Add record first to get ID, then Save file with ID.
+                
+                var upload = new DeptKpiUpload
                 {
-                    Id = newId,
                     Year = year,
                     Month = month,
                     Department = dept,
                     FileName = fileName,
                     UploadDate = DateTime.Now,
                     UploadBy = "System"
-                });
+                };
+                
+                _repository.AddDeptUpload(upload); // ID generated here
+                
+                var filePath = Path.Combine(uploadDir, $"{upload.Id}_{fileName}");
+                file.SaveAs(filePath);
             }
             return RedirectToAction("Index", new { year = year, dept = dept });
         }
 
         public ActionResult Download(int id)
         {
-            var upload = _mockDeptUploads.FirstOrDefault(u => u.Id == id);
+            var upload = _repository.GetDeptUploadById(id);
             if (upload != null)
             {
                 var uploadDir = Server.MapPath("~/App_Data/DeptUploads");
@@ -104,13 +127,22 @@ namespace CompanyKPI_Project.Controllers
         
         public ActionResult Delete(int id)
         {
-            var file = _mockDeptUploads.FirstOrDefault(f => f.Id == id);
+            var file = _repository.GetDeptUploadById(id);
             if(file != null)
             {
-                _mockDeptUploads.Remove(file);
+                _repository.DeleteDeptUpload(id);
                 return RedirectToAction("Index", new { year = file.Year, dept = file.Department });
             }
             return RedirectToAction("Index");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _repository?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }

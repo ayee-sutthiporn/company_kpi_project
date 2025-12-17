@@ -82,6 +82,20 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-info">
+                        <small>
+                            <strong><i class="bi bi-info-circle"></i> Excel Format Guidelines:</strong><br />
+                            Please ensure your Excel file includes the following header columns:
+                            <ul>
+                                <li><strong>KPI Detail</strong> (or Topic)</li>
+                                <li><strong>Condition</strong> (e.g., &lt;=, &gt;=)</li>
+                                <li><strong>Target</strong> (e.g., 20, 100)</li>
+                                <li><strong>Unit</strong> (e.g., %, PPM)</li>
+                                <li><strong>Department Codes</strong> (e.g., IT, QA, HR...)</li>
+                            </ul>
+                            Use 'O' for Owner and 'E' for Encourage in department columns.
+                        </small>
+                    </div>
                     <div class="mb-3">
                         <label for="year" class="form-label">FY</label>
                         <select name="year" class="form-select" required>
