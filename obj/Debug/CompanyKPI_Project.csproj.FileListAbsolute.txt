@@ -110,3 +110,5 @@ D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_P
 D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_Project.csproj.GenerateResource.cache
 D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_Project.Migrations.upate.resources
 D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_Project.Migrations.update.resources
+D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_Project.Migrations.saveFileOnDatabase.resources
+D:\02_Projects\2025\CompanyKPI_Project\CompanyKPI_Project\obj\Debug\CompanyKPI_Project.Migrations.createTableApplicationLog.resources

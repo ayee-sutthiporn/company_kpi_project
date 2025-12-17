@@ -25,6 +25,11 @@ namespace CompanyKPI_Project.Models
         
         [StringLength(100)]
         public string UploadBy { get; set; }
+
+        public byte[] FileContent { get; set; }
+        
+        [StringLength(200)]
+        public string ContentType { get; set; }
     }
 
     public class DepartmentKpiViewModel

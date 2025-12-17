@@ -106,9 +106,11 @@ namespace CompanyKPI_Project.Models
 
         [StringLength(255)]
         public string DT_ProgressiveFile { get; set; }
+        public byte[] DT_ProgressiveFileContent { get; set; }
 
         [StringLength(255)]
         public string DT_ActionPlanFile { get; set; }
+        public byte[] DT_ActionPlanFileContent { get; set; }
 
         [StringLength(100)]
         public string DT_UpdateBy { get; set; }
@@ -119,4 +121,26 @@ namespace CompanyKPI_Project.Models
     }
 
     
+    [Table("tbl_t_application_log")]
+    public class ApplicationLog
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+
+        public DateTime LogDate { get; set; }
+
+        [StringLength(50)]
+        public string Level { get; set; } // Info, Warning, Error
+
+        public string Message { get; set; }
+
+        [StringLength(100)]
+        public string Source { get; set; } // Controller/Action
+
+        [StringLength(100)]
+        public string User { get; set; }
+
+        public string Exception { get; set; }
+    }
 }

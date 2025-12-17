@@ -185,6 +185,14 @@
     <Compile Include="Migrations\202512171556588_update.Designer.cs">
       <DependentUpon>202512171556588_update.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202512171634185_saveFileOnDatabase.cs" />
+    <Compile Include="Migrations\202512171634185_saveFileOnDatabase.Designer.cs">
+      <DependentUpon>202512171634185_saveFileOnDatabase.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202512171656394_createTableApplicationLog.cs" />
+    <Compile Include="Migrations\202512171656394_createTableApplicationLog.Designer.cs">
+      <DependentUpon>202512171656394_createTableApplicationLog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\CompanyKpiModels.cs" />
     <Compile Include="Models\DepartmentKpiModels.cs" />
@@ -301,6 +309,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202512171556588_update.resx">
       <DependentUpon>202512171556588_update.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202512171634185_saveFileOnDatabase.resx">
+      <DependentUpon>202512171634185_saveFileOnDatabase.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202512171656394_createTableApplicationLog.resx">
+      <DependentUpon>202512171656394_createTableApplicationLog.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

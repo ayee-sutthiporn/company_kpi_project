@@ -169,6 +169,12 @@ namespace CompanyKPI_Project.Repositories
             _context.SaveChanges();
         }
 
+        public void AddLog(ApplicationLog log)
+        {
+            _context.ApplicationLogs.Add(log);
+            _context.SaveChanges();
+        }
+
         public void Dispose()
         {
             if (_context != null)

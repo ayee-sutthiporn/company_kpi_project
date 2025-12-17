@@ -34,7 +34,11 @@ namespace CompanyKPI_Project.Repositories
         DeptKpiUpload GetDeptUploadById(int id);
         void AddDeptUpload(DeptKpiUpload upload);
         void DeleteDeptUpload(int id);
-        void ClearDeptUpload(int year, int month, string dept); // Replace logic
+        void ClearDeptUpload(int year, int month, string dept);
+        
+        // Logging
+        void AddLog(ApplicationLog log);
+
         void Dispose();
     }
 }

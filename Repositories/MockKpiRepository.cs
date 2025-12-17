@@ -8,6 +8,12 @@ namespace CompanyKPI_Project.Repositories
     public class MockKpiRepository : IKpiRepository
     {
         // Static Data Store to persist across requests in Mock Mode
+        public void AddLog(ApplicationLog log)
+        {
+            // In Mock, we can just effectively ignore it or write to Debug
+            System.Diagnostics.Debug.WriteLine($"[MockLog] {log.Level}: {log.Source} - {log.Message}");
+        }
+
         private static List<TblTFileUpload> _mockFiles = new List<TblTFileUpload>();
         private static List<TblTDataCompanyKpiHd> _mockHeaders = new List<TblTDataCompanyKpiHd>();
         private static List<TblTDataCompanyKpiDt> _mockDetails = new List<TblTDataCompanyKpiDt>();

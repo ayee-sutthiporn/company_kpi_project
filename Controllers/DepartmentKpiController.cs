@@ -37,7 +37,7 @@ namespace CompanyKPI_Project.Controllers
         public ActionResult Index(int? year, string dept)
         {
             var targetYear = year ?? DateTime.Now.Year;
-            
+
             // Default Dept List
             var depts = new List<string> { "QA", "HR", "Production", "IT", "Sales" };
             ViewBag.Departments = depts;
@@ -56,12 +56,12 @@ namespace CompanyKPI_Project.Controllers
             // Generate 12 Months (April to March Fiscal Year)
             var startDate = new DateTime(targetYear, 4, 1);
             var uploads = _repository.GetDeptUploads(targetYear, targetDept).ToList();
-            
+
             for (int i = 0; i < 12; i++)
             {
                 var d = startDate.AddMonths(i);
                 var upload = uploads.FirstOrDefault(u => u.Month == d.Month);
-                
+
                 model.Months.Add(new DeptMonthItem
                 {
                     Month = d.Month,
@@ -76,36 +76,56 @@ namespace CompanyKPI_Project.Controllers
         [HttpPost]
         public ActionResult Upload(int year, int month, string dept, HttpPostedFileBase file)
         {
-            if (file != null && file.ContentLength > 0)
+            try
             {
-                // Remove existing
-                _repository.ClearDeptUpload(year, month, dept);
-
-                // Save to Disk for Download
-                var fileName = Path.GetFileName(file.FileName);
-                var uploadDir = Server.MapPath("~/App_Data/DeptUploads");
-                if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-                
-                // We need an ID for the file name. EF assigns it on save. Mock assigns it on Add.
-                // This is tricky for EF if we want ID before Save. 
-                // Creating a temp object first?
-                // MockRepo logic: Add first, then get ID? 
-                // Let's Add record first to get ID, then Save file with ID.
-                
-                var upload = new DeptKpiUpload
+                if (file != null && file.ContentLength > 0)
                 {
-                    Year = year,
-                    Month = month,
-                    Department = dept,
-                    FileName = fileName,
-                    UploadDate = DateTime.Now,
-                    UploadBy = "System"
-                };
-                
-                _repository.AddDeptUpload(upload); // ID generated here
-                
-                var filePath = Path.Combine(uploadDir, $"{upload.Id}_{fileName}");
-                file.SaveAs(filePath);
+                    // Remove existing
+                    _repository.ClearDeptUpload(year, month, dept);
+
+                    var upload = new DeptKpiUpload
+                    {
+                        Year = year,
+                        Month = month,
+                        Department = dept,
+                        FileName = file.FileName,
+                        UploadDate = DateTime.Now,
+                        UploadBy = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name,
+                        ContentType = file.ContentType
+                    };
+
+                    // Read File to Byte Array
+                    using (var binaryReader = new BinaryReader(file.InputStream))
+                    {
+                        upload.FileContent = binaryReader.ReadBytes(file.ContentLength);
+                    }
+
+                    _repository.AddDeptUpload(upload);
+
+                    // Log Success
+                    _repository.AddLog(new ApplicationLog
+                    {
+                        LogDate = DateTime.Now,
+                        Level = "Info",
+                        Source = "DeptKpiController/Upload",
+                        Message = $"Uploaded Dept File: {file.FileName} for {dept} {month}/{year}",
+                        User = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log Error
+                _repository.AddLog(new ApplicationLog
+                {
+                    LogDate = DateTime.Now,
+                    Level = "Error",
+                    Source = "DeptKpiController/Upload",
+                    Message = $"Upload Failed: {ex.Message}",
+                    Exception = ex.ToString(),
+                    User = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name
+                });
+                TempData["Error"] = "Upload Failed: " + ex.Message;
             }
             return RedirectToAction("Index", new { year = year, dept = dept });
         }
@@ -113,25 +133,47 @@ namespace CompanyKPI_Project.Controllers
         public ActionResult Download(int id)
         {
             var upload = _repository.GetDeptUploadById(id);
-            if (upload != null)
+            if (upload != null && upload.FileContent != null)
             {
-                var uploadDir = Server.MapPath("~/App_Data/DeptUploads");
-                var filePath = Path.Combine(uploadDir, $"{upload.Id}_{upload.FileName}");
-                if (System.IO.File.Exists(filePath))
-                {
-                    return File(filePath, "application/octet-stream", upload.FileName);
-                }
+                return File(upload.FileContent, upload.ContentType ?? "application/octet-stream", upload.FileName);
             }
-            return HttpNotFound("File not found on server.");
+            return HttpNotFound("File not found or content is empty.");
         }
-        
+
         public ActionResult Delete(int id)
         {
-            var file = _repository.GetDeptUploadById(id);
-            if(file != null)
+            try
             {
-                _repository.DeleteDeptUpload(id);
-                return RedirectToAction("Index", new { year = file.Year, dept = file.Department });
+                var file = _repository.GetDeptUploadById(id);
+                if (file != null)
+                {
+                    _repository.DeleteDeptUpload(id);
+
+                    // Log Success
+                    _repository.AddLog(new ApplicationLog
+                    {
+                        LogDate = DateTime.Now,
+                        Level = "Warning",
+                        Source = "DeptKpiController/Delete",
+                        Message = $"Deleted Dept File ID: {id}, Dept: {file.Department}",
+                        User = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name
+                    });
+
+                    return RedirectToAction("Index", new { year = file.Year, dept = file.Department });
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log Error
+                _repository.AddLog(new ApplicationLog
+                {
+                    LogDate = DateTime.Now,
+                    Level = "Error",
+                    Source = "DeptKpiController/Delete",
+                    Message = $"Delete Failed: {ex.Message}",
+                    Exception = ex.ToString(),
+                    User = User.Identity.IsAuthenticated ? User.Identity.Name : System.Security.Principal.WindowsIdentity.GetCurrent().Name
+                });
             }
             return RedirectToAction("Index");
         }
